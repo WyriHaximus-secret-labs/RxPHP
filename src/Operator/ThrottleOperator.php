@@ -8,20 +8,36 @@ use Rx\Disposable\CompositeDisposable;
 use Rx\Disposable\EmptyDisposable;
 use Rx\Disposable\SerialDisposable;
 use Rx\DisposableInterface;
+use Rx\AsyncSchedulerInterface;
 use Rx\Observable;
 use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 use Rx\SchedulerInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class ThrottleOperator implements OperatorInterface
 {
+    /**
+     * @var int
+     */
     private $nextSend = 0;
 
+    /**
+     * @var int
+     */
     private $throttleTime = 0;
 
+    /**
+     * @var bool
+     */
     private $completed = false;
 
+    /**
+     * @var SchedulerInterface
+     */
     private $scheduler;
 
     public function __construct(int $debounceTime, SchedulerInterface $scheduler)
@@ -30,6 +46,10 @@ final class ThrottleOperator implements OperatorInterface
         $this->scheduler    = $scheduler;
     }
 
+    /**
+     * @template T
+     * @param ObservableInterface<T> $observable
+     */
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
     {
         $innerDisp = new SerialDisposable();
@@ -44,8 +64,13 @@ final class ThrottleOperator implements OperatorInterface
                     return;
                 }
 
-                $newDisp = Observable::of($x, $this->scheduler)
-                    ->delay($this->nextSend - $now, $this->scheduler)
+                /**
+                 * @var Observable<T> $observable
+                 */
+                $observable = Observable::of($x, $this->scheduler);
+                /** @var AsyncSchedulerInterface $scheduler */
+                $scheduler = $this->scheduler;
+                $newDisp = $observable->delay($this->nextSend - $now, $scheduler)
                     ->subscribe(new CallbackObserver(
                         function ($x) use ($observer): void {
                             $observer->onNext($x);

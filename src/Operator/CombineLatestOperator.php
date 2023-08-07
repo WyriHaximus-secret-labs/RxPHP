@@ -10,14 +10,21 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class CombineLatestOperator implements OperatorInterface
 {
-    /** @var ObservableInterface[] */
+    /** @var array<ObservableInterface<T>> */
     private $observables;
 
     /** @var callable */
     private $resultSelector;
 
+    /**
+     * @param array<ObservableInterface<T>> $observables
+     */
     public function __construct(array $observables, ?callable $resultSelector = null)
     {
         if (null === $resultSelector) {
@@ -27,7 +34,7 @@ final class CombineLatestOperator implements OperatorInterface
         }
 
         foreach ($observables as $observable) {
-            if (!$observable instanceof ObservableInterface) {
+            if (!$observable instanceof ObservableInterface) { /** @phpstan-ignore instanceof.alwaysTrue */
                 throw new \InvalidArgumentException;
             }
         }
@@ -53,7 +60,7 @@ final class CombineLatestOperator implements OperatorInterface
             $hasValue[$key] = false;
 
             $cbObserver = new CallbackObserver(
-                function ($value) use ($count, &$hasValue, $key, &$values, $observer, &$waitingForValues, &$waitingToComplete): void {
+                function ($value) use (&$hasValue, $key, &$values, $observer, &$waitingForValues, &$waitingToComplete): void {
 
                     // If an observable has completed before it has emitted, we need to complete right away
                     if ($waitingForValues > $waitingToComplete) {

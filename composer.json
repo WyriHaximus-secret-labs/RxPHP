@@ -21,10 +21,10 @@
     ],
     "require": {
         "php": ">=7.1.0",
-        "react/promise": "^3 || ~2.2"
+        "react/promise": "^3"
     },
     "require-dev": {
-        "satooshi/php-coveralls": "~1.0",
+        "phpstan/phpstan": "^2.2.5",
         "phpunit/phpunit": "^8.5 || ^9",
         "react/event-loop": "^1.0 || ^0.5 || ^0.4.2",
         "rector/rector": "^2.0"

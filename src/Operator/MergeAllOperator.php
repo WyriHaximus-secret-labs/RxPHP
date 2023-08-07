@@ -11,6 +11,9 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class MergeAllOperator implements OperatorInterface
 {
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
@@ -37,6 +40,7 @@ final class MergeAllOperator implements OperatorInterface
                         function () use (&$group, &$innerSubscription, &$isStopped, $observer): void {
                             $group->remove($innerSubscription);
 
+                            /** @phpstan-ignore-next-line */
                             if ($isStopped && $group->count() === 1) {
                                 $observer->onCompleted();
                             }

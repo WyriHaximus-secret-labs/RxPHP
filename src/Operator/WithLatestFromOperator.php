@@ -10,14 +10,21 @@ use Rx\DisposableInterface;
 use Rx\ObservableInterface;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class WithLatestFromOperator implements OperatorInterface
 {
-    /** @var ObservableInterface[] */
+    /** @var array<ObservableInterface<T>> */
     private $observables;
 
     /** @var callable */
     private $resultSelector;
 
+    /**
+     * @param array<ObservableInterface<T>> $observables
+     */
     public function __construct(array $observables, ?callable $resultSelector = null)
     {
         if (null === $resultSelector) {
@@ -27,7 +34,7 @@ final class WithLatestFromOperator implements OperatorInterface
         }
 
         foreach ($observables as $observable) {
-            if (!$observable instanceof ObservableInterface) {
+            if (!$observable instanceof ObservableInterface) { /** @phpstan-ignore instanceof.alwaysTrue */
                 throw new \InvalidArgumentException;
             }
         }

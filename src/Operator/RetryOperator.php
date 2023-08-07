@@ -11,8 +11,14 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class RetryOperator implements OperatorInterface
 {
+    /**
+     * @var int
+     */
     private $retryCount;
 
     public function __construct(int $retryCount = -1)

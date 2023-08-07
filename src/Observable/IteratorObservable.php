@@ -9,13 +9,26 @@ use Rx\Observable;
 use Rx\ObserverInterface;
 use Rx\SchedulerInterface;
 
+/**
+ * @template T
+ * @template-extends Observable<T>
+ */
 class IteratorObservable extends Observable
 {
+    /**
+     * @var \Iterator<mixed, T>
+     */
     private $items;
 
+    /**
+     * @var SchedulerInterface
+     */
     private $scheduler;
 
-    public function __construct(\Iterator $items, ?SchedulerInterface $scheduler = null)
+    /**
+     * @param \Iterator<mixed, T> $items
+     */
+    public function __construct(\Iterator $items, SchedulerInterface $scheduler)
     {
         $this->items     = $items;
         $this->scheduler = $scheduler;
@@ -25,7 +38,7 @@ class IteratorObservable extends Observable
     {
         $key = 0;
 
-        $action = function ($reschedule) use (&$observer, &$key): void {
+        $action = function (callable $reschedule) use (&$observer, &$key): void {
             try {
                 if (null === $key || !$this->items->valid()) {
 

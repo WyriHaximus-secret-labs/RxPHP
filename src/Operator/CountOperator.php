@@ -9,9 +9,19 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class CountOperator implements OperatorInterface
 {
+    /**
+     * @var int
+     */
     private $count = 0;
+
+    /**
+     * @var callable|null
+     */
     private $predicate;
 
     public function __construct(?callable $predicate = null)

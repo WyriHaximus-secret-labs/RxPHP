@@ -9,8 +9,14 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class MinOperator implements OperatorInterface
 {
+    /**
+     * @var callable
+     */
     private $comparer;
 
     public function __construct(?callable $comparer = null)
@@ -49,6 +55,7 @@ final class MinOperator implements OperatorInterface
             },
             [$observer, 'onError'],
             function () use (&$comparing, &$previousMin, $observer): void {
+                /** @phpstan-ignore-next-line */
                 if ($comparing) {
                     $observer->onNext($previousMin);
                     $observer->onCompleted();

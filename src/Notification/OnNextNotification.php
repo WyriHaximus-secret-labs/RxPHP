@@ -9,21 +9,28 @@ use Rx\Notification;
 
 class OnNextNotification extends Notification
 {
+    /**
+     * @var mixed
+     */
     private $value;
 
+    /**
+     * @param mixed $value
+     */
     public function __construct($value)
     {
-        parent::__construct('N');
-
         $this->value = $value;
     }
 
+    /**
+     * @return void
+     */
     protected function doAcceptObservable(ObserverInterface $observer)
     {
         $observer->onNext($this->value);
     }
 
-    protected function doAccept($onNext, $onError, $onCompleted)
+    protected function doAccept(callable $onNext, ?callable $onError = null, ?callable $onCompleted = null)
     {
         $onNext($this->value);
     }
@@ -37,10 +44,11 @@ class OnNextNotification extends Notification
     {
         if (($other instanceof $this) && is_object($this->value) && is_object($other->value)) {
             if ($this->value instanceof $other->value && method_exists($this->value, "equals")) {
-                return $this->value->equals($other->value);
+                return (bool) $this->value->equals($other->value);
             }
         }
 
+        /** @phpstan-ignore-next-line */
         return (string)$this === (string)$other;
     }
 }

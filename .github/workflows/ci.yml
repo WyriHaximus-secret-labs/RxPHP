@@ -9,24 +9,41 @@ jobs:
     name: PHPUnit (PHP ${{ matrix.php }} on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - windows-latest
+          - ubuntu-20.04
+          - windows-2019
         php:
-          - 8.5
-          - 8.4
           - 8.3
           - 8.2
           - 8.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           coverage: xdebug
-          tools: composer
-          cache: composer
-      - run: composer install --prefer-dist --no-interaction --no-progress
+      - run: composer install
       - run: vendor/bin/phpunit --coverage-text
+  PHPStan:
+    name: PHPStan (PHP ${{ matrix.php }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-20.04
+          - windows-2019
+        php:
+          - 8.3
+          - 8.2
+          - 8.1
+    steps:
+      - uses: actions/checkout@v3
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install
+      - run: vendor/bin/phpstan

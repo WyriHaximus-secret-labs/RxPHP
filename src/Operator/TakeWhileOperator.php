@@ -9,11 +9,25 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class TakeWhileOperator implements OperatorInterface
 {
+    /**
+     * @var (callable(T): bool)
+     */
     private $predicate;
+
+    /**
+     * @var bool
+     */
     private $inclusive;
 
+    /**
+     * @param (callable(T): bool) $predicate
+     */
     public function __construct(callable $predicate, bool $inclusive = false)
     {
         $this->predicate = $predicate;

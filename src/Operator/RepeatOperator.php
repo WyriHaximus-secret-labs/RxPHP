@@ -11,8 +11,14 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class RepeatOperator implements OperatorInterface
 {
+    /**
+     * @var int
+     */
     private $repeatCount;
 
     public function __construct(int $repeatCount = -1)
@@ -34,7 +40,7 @@ final class RepeatOperator implements OperatorInterface
             $disposable->setDisposable($observable->subscribe(new CallbackObserver(
                 [$observer, 'onNext'],
                 [$observer, 'onError'],
-                function () use (&$completeCount, $observable, $observer, &$disposable, &$subscribe): void {
+                function () use (&$completeCount, $observer, &$subscribe): void {
                     $completeCount++;
                     if ($this->repeatCount === -1 || $completeCount < $this->repeatCount) {
                         $subscribe();

@@ -10,10 +10,20 @@ use Rx\Observable;
 use Rx\ObserverInterface;
 use Rx\Observer\AutoDetachObserver;
 
+/**
+ * @template T
+ * @template-extends Observable<T>
+ */
 class AnonymousObservable extends Observable
 {
+    /**
+     * @var callable(ObserverInterface): (DisposableInterface|null)
+     */
     private $subscribeAction;
 
+    /**
+     * @param callable(ObserverInterface): (DisposableInterface|null) $subscribeAction
+     */
     public function __construct(callable $subscribeAction)
     {
         $this->subscribeAction = $subscribeAction;

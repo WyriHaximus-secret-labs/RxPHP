@@ -12,8 +12,14 @@ use Rx\ObservableInterface;
 use Rx\ObserverInterface;
 use Rx\SchedulerInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class SubscribeOnOperator implements OperatorInterface
 {
+    /**
+     * @var SchedulerInterface
+     */
     private $scheduler;
 
     public function __construct(SchedulerInterface $scheduler)

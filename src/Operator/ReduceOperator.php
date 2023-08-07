@@ -9,16 +9,27 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class ReduceOperator implements OperatorInterface
 {
     /** @var  callable */
     protected $accumulator;
+
+    /**
+     * @var mixed
+     */
     protected $seed;
+
+    /**
+     * @var bool
+     */
     protected $hasSeed;
 
     /**
      * @param callable $accumulator
-     * @param $seed
+     * @param mixed $seed
      */
     public function __construct(callable $accumulator, $seed)
     {
@@ -51,13 +62,15 @@ final class ReduceOperator implements OperatorInterface
             function ($e) use ($observer): void {
                 $observer->onError($e);
             },
-            function () use ($observer, &$hasAccumulation, &$accumulation, &$hasValue): void {
+            function () use ($observer, &$accumulation, &$hasValue): void {
+                /** @phpstan-ignore-next-line */
                 if ($hasValue) {
                     $observer->onNext($accumulation);
                 } else {
                     $this->hasSeed && $observer->onNext($this->seed);
                 }
 
+                /** @phpstan-ignore-next-line */
                 if (!$hasValue && !$this->hasSeed) {
                     $observer->onError(new \Exception('Missing Seed and or Value'));
                 }

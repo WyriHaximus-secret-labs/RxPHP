@@ -165,7 +165,7 @@ class CreateTest extends FunctionalTestCase
      */
     public function create_observer_does_not_catch(): void
     {
-        $this->assertException(function (): void {
+        $this->assertException(function () {
             Observable::create(function (ObserverInterface $o) {
                 $o->onNext(1);
                 return new EmptyDisposable();
@@ -175,7 +175,7 @@ class CreateTest extends FunctionalTestCase
         });
 
 
-        $this->assertException(function (): void {
+        $this->assertException(function () {
             Observable::create(function (ObserverInterface $o) {
                 $o->onError(new \Exception());
                 return new EmptyDisposable();
@@ -189,7 +189,7 @@ class CreateTest extends FunctionalTestCase
             );
         });
 
-        $this->assertException(function (): void {
+        $this->assertException(function () {
             Observable::create(function (ObserverInterface $o) {
                 $o->onCompleted();
                 return new EmptyDisposable();

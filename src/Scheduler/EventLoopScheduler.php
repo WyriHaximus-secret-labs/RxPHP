@@ -12,22 +12,38 @@ use Rx\DisposableInterface;
 
 final class EventLoopScheduler extends VirtualTimeScheduler
 {
+    /**
+     * @var int
+     */
     private $nextTimer = PHP_INT_MAX;
 
+    /**
+     * @var bool
+     */
     private $insideInvoke = false;
 
+    /**
+     * @var callable(int|float, callable(): void): DisposableInterface
+     */
     private $delayCallback;
 
+    /**
+     * @var DisposableInterface
+     */
     private $currentTimer;
 
     /**
-     * EventLoopScheduler constructor.
-     * @param callable|LoopInterface $timerCallableOrLoop
+     * @param callable(int|float, callable(): void): DisposableInterface|LoopInterface $timerCallableOrLoop
      */
     public function __construct($timerCallableOrLoop)
     {
         $this->delayCallback = $timerCallableOrLoop instanceof LoopInterface ?
-            function ($ms, $callable) use ($timerCallableOrLoop) {
+            /**
+             * @param int|float $ms
+             * @param callable(): void $callable
+             */
+            function ($ms, callable $callable) use ($timerCallableOrLoop): DisposableInterface {
+                /** @var int|float $ms */
                 $timer = $timerCallableOrLoop->addTimer($ms / 1000, $callable);
                 return new CallbackDisposable(function () use ($timer, $timerCallableOrLoop): void {
                     $timerCallableOrLoop->cancelTimer($timer);
@@ -38,10 +54,15 @@ final class EventLoopScheduler extends VirtualTimeScheduler
         $this->currentTimer = new EmptyDisposable();
 
         parent::__construct($this->now(), function ($a, $b) {
+            /** @var int $a */
+            /** @var int $b */
             return $a - $b;
         });
     }
 
+    /**
+     * @return void
+     */
     private function scheduleStartup()
     {
         if ($this->insideInvoke) {
@@ -49,7 +70,9 @@ final class EventLoopScheduler extends VirtualTimeScheduler
         }
         $this->currentTimer->dispose();
         $this->nextTimer    = $this->getClock();
-        $this->currentTimer = call_user_func($this->delayCallback, 0, [$this, 'start']);
+        /** @var DisposableInterface $timer */
+        $timer = call_user_func($this->delayCallback, 0, [$this, 'start']);
+        $this->currentTimer = $timer;
     }
 
     public function scheduleAbsoluteWithState($state, int $dueTime, callable $action): DisposableInterface
@@ -88,7 +111,9 @@ final class EventLoopScheduler extends VirtualTimeScheduler
             if ($next !== null) {
                 if ($next->getDueTime() > $this->clock) {
                     $this->nextTimer = $next->getDueTime();
-                    $this->currentTimer = call_user_func($this->delayCallback, $this->nextTimer - $this->clock, [$this, "start"]);
+                    /** @var DisposableInterface $timer */
+                    $timer = call_user_func($this->delayCallback, $this->nextTimer - $this->clock, [$this, "start"]);
+                    $this->currentTimer = $timer;
                     break;
                 }
 

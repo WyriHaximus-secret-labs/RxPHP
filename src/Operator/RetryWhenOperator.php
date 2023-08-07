@@ -12,10 +12,19 @@ use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 use Rx\Subject\Subject;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class RetryWhenOperator implements OperatorInterface
 {
+    /**
+     * @var callable(ObservableInterface<mixed>): ObservableInterface<mixed>
+     */
     private $notificationHandler;
 
+    /**
+     * @param callable(ObservableInterface<mixed>): ObservableInterface<mixed> $notificationHandler
+     */
     public function __construct(callable $notificationHandler)
     {
         $this->notificationHandler = $notificationHandler;
@@ -30,6 +39,7 @@ final class RetryWhenOperator implements OperatorInterface
         $sourceError      = false;
 
         try {
+            /** @var ObservableInterface<mixed> $when */
             $when = ($this->notificationHandler)($errors->asObservable());
         } catch (\Throwable $e) {
             $observer->onError($e);
@@ -52,6 +62,7 @@ final class RetryWhenOperator implements OperatorInterface
                     $disposable->remove($sourceDisposable);
                     $sourceDisposable->dispose();
 
+                    /** @phpstan-ignore-next-line */
                     if ($innerCompleted) {
                         $observer->onCompleted();
                         return;

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Rx;
 
@@ -78,10 +78,14 @@ use Rx\Subject\BehaviorSubject;
 use Rx\Subject\ReplaySubject;
 use Rx\Subject\Subject;
 
+/**
+ * @template  T
+ * @template-implements ObservableInterface<T>
+ */
 abstract class Observable implements ObservableInterface
 {
     /**
-     * @param callable|ObserverInterface|null $onNextOrObserver
+     * @param (callable(T): void)|ObserverInterface|null $onNextOrObserver
      * @param callable|null $onError
      * @param callable|null $onCompleted
      * @return DisposableInterface
@@ -94,7 +98,7 @@ abstract class Observable implements ObservableInterface
     {
         if ($onNextOrObserver instanceof ObserverInterface) {
             return $this->_subscribe($onNextOrObserver);
-        } elseif ($onNextOrObserver !== null && !is_callable($onNextOrObserver)) {
+        } elseif (null !== $onNextOrObserver && !is_callable($onNextOrObserver)) { /** @phpstan-ignore function.alreadyNarrowedType, booleanAnd.alwaysFalse */
             throw new \InvalidArgumentException('The first argument needs to be a "callable" or "Observer"');
         }
 
@@ -104,13 +108,14 @@ abstract class Observable implements ObservableInterface
             $onNextOrObserver === null
                 ? null
                 : function ($value) use ($onNextOrObserver, &$observer, &$disposable): void {
-                    try {
-                        $onNextOrObserver($value);
-                    } catch (\Throwable $throwable) {
-                        $disposable->dispose();
-                        $observer->onError($throwable);
-                    }
-                },
+                try {
+                    $onNextOrObserver($value);
+                } catch (\Throwable $throwable) {
+                    $disposable->dispose();
+                    /** @phpstan-ignore-next-line */
+                    $observer->onError($throwable);
+                }
+            },
             $onError,
             $onCompleted
         );
@@ -127,13 +132,13 @@ abstract class Observable implements ObservableInterface
     protected abstract function _subscribe(ObserverInterface $observer): DisposableInterface;
 
     /**
-     * @deprecated
      *
      * @param callable|null $onNext
      * @param callable|null $onError
      * @param callable|null $onCompleted
      * @return DisposableInterface
      */
+    #[\Deprecated]
     public function subscribeCallback(?callable $onNext = null, ?callable $onError = null, ?callable $onCompleted = null): DisposableInterface
     {
         $observer = new CallbackObserver($onNext, $onError, $onCompleted);
@@ -144,15 +149,21 @@ abstract class Observable implements ObservableInterface
     /**
      * Creates an observable sequence from a specified subscribeAction callable implementation.
      *
-     * @param callable $subscribeAction Implementation of the resulting observable sequence's subscribe method.
-     * @return Observable The observable sequence with the specified implementation for the subscribe method.
+     * @template TValue
+     * @param callable(ObserverInterface): (DisposableInterface|null) $subscribeAction Implementation of the resulting observable sequence's subscribe method.
+     * @return Observable<TValue> The observable sequence with the specified implementation for the subscribe method.
      *
      * @demo create/create.php
      * @operator
      * @reactivex create
+     * @phpstan-ignore method.templateTypeNotInParameter
      */
     public static function create(callable $subscribeAction): Observable
     {
+        /**
+         * @var Observable<TValue>
+         * @phpstan-ignore varTag.nativeType
+         */
         return new AnonymousObservable($subscribeAction);
     }
 
@@ -160,7 +171,7 @@ abstract class Observable implements ObservableInterface
      * Returns an Observable that emits an infinite sequence of ascending integers starting at 0, with a constant interval of time of your choosing between emissions.
      *
      * @param $interval int Period for producing the values in the resulting sequence (specified as an integer denoting milliseconds).
-     * @param null|AsyncSchedulerInterface|SchedulerInterface $scheduler
+     * @param ?AsyncSchedulerInterface $scheduler
      * @return IntervalObservable An observable sequence that produces a value after each period.
      *
      * @demo interval/interval.php
@@ -175,28 +186,32 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns an observable sequence that contains a single element.
      *
-     * @param mixed $value Single element in the resulting observable sequence.
-     * @param SchedulerInterface $scheduler
-     * @return ReturnObservable An observable sequence with the single element.
+     * @template X
+     * @param X $value Single element in the resulting observable sequence.
+     * @param ?SchedulerInterface $scheduler
+     * @return Observable<X>
      *
      * @demo of/of.php
      * @operator
      * @reactivex just
      */
-    public static function of($value, ?SchedulerInterface $scheduler = null): ReturnObservable
+    public static function of($value, ?SchedulerInterface $scheduler = null): Observable
     {
         return new ReturnObservable($value, $scheduler ?: Scheduler::getDefault());
     }
 
     /**
-     * @deprecated Use `of`
-     * Alias for of
      *
-     * @param $value
+     * @template X
+     * @param X $value
      * @param SchedulerInterface|null $scheduler
-     * @return ReturnObservable
+     * @return Observable<X>
      */
-    public static function just($value, ?SchedulerInterface $scheduler = null): ReturnObservable
+    #[\Deprecated(message: <<<'TXT'
+    Use `of`
+     Alias for of
+    TXT)]
+    public static function just($value, ?SchedulerInterface $scheduler = null): Observable
     {
         return static::of($value, $scheduler);
     }
@@ -205,7 +220,7 @@ abstract class Observable implements ObservableInterface
      * Returns an empty observable sequence.
      *
      * @param SchedulerInterface $scheduler
-     * @return EmptyObservable An observable sequence with no elements.
+     * @return EmptyObservable<mixed> An observable sequence with no elements.
      *
      * @demo empty/empty.php
      * @operator
@@ -217,12 +232,14 @@ abstract class Observable implements ObservableInterface
     }
 
     /**
-     * @deprecated Use `empty`
-     * Alias for empty
      *
      * @param SchedulerInterface|null $scheduler
-     * @return EmptyObservable
+     * @return EmptyObservable<mixed>
      */
+    #[\Deprecated(message: <<<'TXT'
+    Use `empty`
+     Alias for empty
+    TXT)]
     public static function emptyObservable(?SchedulerInterface $scheduler = null): EmptyObservable
     {
         return static::empty($scheduler);
@@ -231,7 +248,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns a non-terminating observable sequence, which can be used to denote an infinite duration.
      *
-     * @return NeverObservable An observable sequence whose observers will never get called.
+     * @return NeverObservable<mixed> An observable sequence whose observers will never get called.
      *
      * @demo never/never.php
      * @operator
@@ -247,7 +264,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param \Throwable $error
      * @param SchedulerInterface $scheduler
-     * @return ErrorObservable The observable sequence that terminates exceptionally with the specified exception object.
+     * @return ErrorObservable<mixed> The observable sequence that terminates exceptionally with the specified exception object.
      *
      * @demo error-observable/error-observable.php
      * @operator
@@ -261,8 +278,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Combine an Observable together with another Observable by merging their emissions into a single Observable.
      *
-     * @param ObservableInterface $otherObservable
-     * @return Observable
+     * @param ObservableInterface<T> $otherObservable
+     * @return Observable<T>
      *
      * @demo merge/merge.php
      * @operator
@@ -270,17 +287,22 @@ abstract class Observable implements ObservableInterface
      */
     public function merge(ObservableInterface $otherObservable): Observable
     {
-        return (new AnonymousObservable(function (ObserverInterface $observer) use ($otherObservable): void {
+        /**
+         * @var Observable<T>
+         */
+        return (new AnonymousObservable(function (ObserverInterface $observer) use ($otherObservable) {
             $observer->onNext($this);
             $observer->onNext($otherObservable);
             $observer->onCompleted();
+
+            return null;
         }))->mergeAll();
     }
 
     /**
      * Merges an observable sequence of observables into an observable sequence.
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo merge/merge-all.php
      * @operator
@@ -289,22 +311,23 @@ abstract class Observable implements ObservableInterface
     public function mergeAll(): Observable
     {
         return $this->lift(function () {
-            return new MergeAllOperator($this);
+            return new MergeAllOperator();
         });
     }
 
     /**
      * Converts an array to an observable sequence
      *
-     * @param array $array
-     * @param SchedulerInterface $scheduler
-     * @return ArrayObservable
+     * @template X
+     * @param array<X> $array
+     * @param ?SchedulerInterface $scheduler
+     * @return Observable<X>
      *
      * @demo fromArray/fromArray.php
      * @operator
      * @reactivex from
      */
-    public static function fromArray(array $array, ?SchedulerInterface $scheduler = null): ArrayObservable
+    public static function fromArray(array $array, ?SchedulerInterface $scheduler = null): Observable
     {
         return new ArrayObservable($array, $scheduler ?: Scheduler::getDefault());
     }
@@ -312,15 +335,16 @@ abstract class Observable implements ObservableInterface
     /**
      * Converts an Iterator into an observable sequence
      *
-     * @param \Iterator $iterator
+     * @template TItem
+     * @param \Iterator<mixed, TItem> $iterator
      * @param SchedulerInterface $scheduler
-     * @return IteratorObservable
+     * @return Observable<TItem>
      *
      * @demo iterator/iterator.php
      * @operator
      * @reactivex from
      */
-    public static function fromIterator(\Iterator $iterator, ?SchedulerInterface $scheduler = null): IteratorObservable
+    public static function fromIterator(\Iterator $iterator, ?SchedulerInterface $scheduler = null): Observable
     {
         return new IteratorObservable($iterator, $scheduler ?: Scheduler::getDefault());
     }
@@ -328,9 +352,10 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns an observable sequence that invokes the specified factory function whenever a new observer subscribes.
      *
-     * @param callable $factory
+     * @template X
+     * @param (callable(): (PromiseInterface<X>|ObservableInterface<X>)) $factory
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<X>
      *
      * @demo defer/defer.php
      * @operator
@@ -338,6 +363,9 @@ abstract class Observable implements ObservableInterface
      */
     public static function defer(callable $factory, ?SchedulerInterface $scheduler = null): Observable
     {
+        /**
+         * @var Observable<X>
+         */
         return static::empty($scheduler)
             ->lift(function () use ($factory) {
                 return new DeferOperator(new ObservableFactoryWrapper($factory));
@@ -348,8 +376,8 @@ abstract class Observable implements ObservableInterface
      * Generates an observable sequence of integral numbers within a specified range, using the specified scheduler to
      * send out observer messages.
      *
-     * @param $start
-     * @param $count
+     * @param int $start
+     * @param int $count
      * @param SchedulerInterface $scheduler
      * @return RangeObservable
      * @throws \InvalidArgumentException
@@ -367,9 +395,10 @@ abstract class Observable implements ObservableInterface
      * Invokes the specified function asynchronously on the specified scheduler, surfacing the result through an
      * observable sequence.
      *
-     * @param callable $action
+     * @template X
+     * @param (callable(): X) $action
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<X>
      *
      * @demo start/start.php
      * @operator
@@ -378,18 +407,18 @@ abstract class Observable implements ObservableInterface
     public static function start(callable $action, ?SchedulerInterface $scheduler = null): Observable
     {
         $scheduler = $scheduler ?? Scheduler::getDefault();
+        /**
+         * @var AsyncSubject<X> $subject
+         */
         $subject   = new AsyncSubject();
 
         $scheduler->schedule(function () use ($subject, $action): void {
-            $result = null;
             try {
-                $result = $action();
+                $subject->onNext($action());
+                $subject->onCompleted();
             } catch (\Throwable $e) {
                 $subject->onError($e);
-                return;
             }
-            $subject->onNext($result);
-            $subject->onCompleted();
         });
 
         return $subject->asObservable();
@@ -399,7 +428,7 @@ abstract class Observable implements ObservableInterface
      * Takes a transforming function that operates on each element.
      *
      * @param callable $selector
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo map/map.php
      * @operator
@@ -416,7 +445,7 @@ abstract class Observable implements ObservableInterface
      * Maps operator variant that calls the map selector with the index and value
      *
      * @param callable $selector
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo map/mapWithIndex.php
      * @operator
@@ -433,8 +462,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Maps every value to the same value every time
      *
-     * @param $value
-     * @return Observable
+     * @param T $value
+     * @return Observable<T>
      *
      * @demo map/mapTo.php
      * @operator
@@ -451,7 +480,7 @@ abstract class Observable implements ObservableInterface
      * Alias for Map
      *
      * @param callable $selector
-     * @return Observable
+     * @return Observable<T>
      *
      * @operator
      * @reactivex map
@@ -465,7 +494,7 @@ abstract class Observable implements ObservableInterface
      * Emit only those items from an Observable that pass a predicate test.
      *
      * @param callable $predicate
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo filter/filter.php
      * @operator
@@ -482,7 +511,7 @@ abstract class Observable implements ObservableInterface
      * Alias for filter
      *
      * @param callable $predicate
-     * @return Observable
+     * @return Observable<T>
      *
      * @operator
      * @reactivex filter
@@ -495,8 +524,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Projects each element of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
      *
-     * @param callable $selector
-     * @return Observable
+     * @param (callable(): (PromiseInterface<T>|ObservableInterface<T>)) $selector
+     * @return Observable<T>
      *
      * @demo flatMap/flatMap.php
      * @operator
@@ -511,10 +540,10 @@ abstract class Observable implements ObservableInterface
      * Projects each element of the source observable sequence to the other observable sequence and merges the
      * resulting observable sequences into one observable sequence.
      *
-     * @param ObservableInterface $observable - An an observable sequence to project each element from the source
+     * @param ObservableInterface<T> $observable - An an observable sequence to project each element from the source
      * sequence onto.
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo concat/concatMapTo.php
      * @operator
@@ -530,8 +559,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Alias for flatMap
      *
-     * @param $selector
-     * @return Observable
+     * @param (callable(): (PromiseInterface<T>|ObservableInterface<T>)) $selector
+     * @return Observable<T>
      *
      * @operator
      * @reactivex flatMap
@@ -554,7 +583,7 @@ abstract class Observable implements ObservableInterface
      * new one.
      *
      * @param callable $selector - A transform function to apply to each source element.
-     * @return Observable - An observable sequence which transforms the items emitted by an Observable into
+     * @return Observable<T> - An observable sequence which transforms the items emitted by an Observable into
      * Observables, and mirror those items emitted by the most-recently transformed Observable.
      *
      * @demo flatMap/flatMapLatest.php
@@ -568,7 +597,7 @@ abstract class Observable implements ObservableInterface
 
     /**
      * @param integer $count
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo skip/skip.php
      * @operator
@@ -587,7 +616,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param callable $predicate A function to test each element for a condition.
      *
-     * @return Observable An observable sequence that contains the elements from the input sequence starting
+     * @return Observable<T> An observable sequence that contains the elements from the input sequence starting
      * at the first element in the linear series that does not pass the test specified by predicate.
      *
      * @demo skip/skipWhile.php
@@ -608,7 +637,7 @@ abstract class Observable implements ObservableInterface
      * @param callable $predicate A function to test each element for a condition; the first parameter of the
      * function represents the index of the source element, the second parameter is the value.
      *
-     * @return Observable An observable sequence that contains the elements from the input sequence starting
+     * @return Observable<T> An observable sequence that contains the elements from the input sequence starting
      * at the first element in the linear series that does not pass the test specified by predicate.
      *
      * @demo skip/skipWhileWithIndex.php
@@ -627,7 +656,7 @@ abstract class Observable implements ObservableInterface
      * Returns a specified number of contiguous elements from the start of an observable sequence
      *
      * @param integer $count
-     * @return Observable|EmptyObservable
+     * @return Observable<T>|EmptyObservable<T>
      *
      * @demo take/take.php
      * @operator
@@ -636,6 +665,10 @@ abstract class Observable implements ObservableInterface
     public function take(int $count): Observable
     {
         if ($count === 0) {
+            /**
+             * @var Observable<T>
+             * @phpstan-ignore varTag.nativeType
+             */
             return self::empty();
         }
 
@@ -647,9 +680,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns the values from the source observable sequence until the other observable sequence produces a value.
      *
-     * @param ObservableInterface $other - other Observable sequence that terminates propagation of elements of
+     * @param ObservableInterface<T> $other - other Observable sequence that terminates propagation of elements of
      * the source sequence.
-     * @return Observable - An observable sequence containing the elements of the source sequence up to the
+     * @return Observable<T> - An observable sequence containing the elements of the source sequence up to the
      * point the other sequence interrupted further propagation.
      *
      * @demo take/takeUntil.php
@@ -669,7 +702,8 @@ abstract class Observable implements ObservableInterface
      * element.
      *
      * @param callable $predicate
-     * @return Observable
+     * @param bool $inclusive When true, the first value that fails the predicate is still emitted.
+     * @return Observable<T>
      *
      * @demo take/takeWhile.php
      * @operator
@@ -688,7 +722,7 @@ abstract class Observable implements ObservableInterface
      * value of the element.
      *
      * @param callable $predicate
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo take/takeWhileWithIndex.php
      * @operator
@@ -705,8 +739,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns a specified number of contiguous elements from the end of an observable sequence.
      *
-     * @param $count
-     * @return Observable
+     * @param int $count
+     * @return Observable<T>
      *
      * @demo take/takeLast.php
      * @operator
@@ -725,7 +759,7 @@ abstract class Observable implements ObservableInterface
      * @param callable $keySelector
      * @param callable|null $elementSelector
      * @param callable|null $keySerializer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo groupBy/groupBy.php
      * @operator
@@ -745,7 +779,7 @@ abstract class Observable implements ObservableInterface
      * @param callable|null $elementSelector
      * @param callable|null $durationSelector
      * @param callable|null $keySerializer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo groupBy/groupByUntil.php
      * @operator
@@ -762,11 +796,15 @@ abstract class Observable implements ObservableInterface
      * Lifts a function to the current Observable and returns a new Observable that when subscribed to will pass
      * the values of the current Observable through the Operator function.
      *
-     * @param callable $operatorFactory
-     * @return Observable
+     * @param callable(): \Rx\Operator\OperatorInterface<mixed> $operatorFactory
+     * @return Observable<T>
      */
     public function lift(callable $operatorFactory): Observable
     {
+        /**
+         * @var Observable<T>
+         * @phpstan-ignore varTag.nativeType
+         */
         return new AnonymousObservable(function (ObserverInterface $observer) use ($operatorFactory) {
             $operator = $operatorFactory();
             return $operator($this, $observer);
@@ -780,9 +818,9 @@ abstract class Observable implements ObservableInterface
      * namespace format:
      * CustomNamespace\Rx\Operator\OperatorNameOperator
      *
-     * @param $name
-     * @param $arguments
-     * @return Observable
+     * @param string $name
+     * @param array<mixed> $arguments
+     * @return Observable<T>
      *
      * @demo custom-operator/rot13.php
      */
@@ -790,14 +828,20 @@ abstract class Observable implements ObservableInterface
     {
         $fullNamespace = 'Rx\\Operator\\';
         if ($name[0] === '_') {
-            list($_, $namespace, $methodName) = explode('_', $name);
+            [$_, $namespace, $methodName] = explode('_', $name);
             $name          = $methodName;
             $fullNamespace = $namespace . '\\' . $fullNamespace;
         }
+        /**
+         * @var class-string
+         */
         $className = $fullNamespace . ucfirst($name) . 'Operator';
 
-        return $this->lift(function () use ($className, $arguments) {
-            return (new \ReflectionClass($className))->newInstanceArgs($arguments);
+        return $this->lift(function () use ($className, $arguments): \Rx\Operator\OperatorInterface {
+            $operator = (new \ReflectionClass($className))->newInstanceArgs($arguments);
+            /** @var \Rx\Operator\OperatorInterface<mixed> $operator */
+
+            return $operator;
         });
     }
 
@@ -808,7 +852,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param callable $accumulator - An accumulator function to be invoked on each element.
      * @param mixed $seed [optional] - The initial accumulator value.
-     * @return Observable - An observable sequence containing a single element with the final
+     * @return Observable<T> - An observable sequence containing a single element with the final
      * accumulator value.
      *
      * @demo reduce/reduce.php
@@ -829,7 +873,7 @@ abstract class Observable implements ObservableInterface
      * structure which can grow large.
      *
      * @param callable|null $comparer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo distinct/distinct.php
      * @operator
@@ -845,9 +889,9 @@ abstract class Observable implements ObservableInterface
     /**
      *  Variant of distinct that takes a key selector
      *
-     * @param callable|null $keySelector
+     * @param callable $keySelector
      * @param callable|null $comparer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo distinct/distinctKey.php
      * @operator
@@ -864,7 +908,7 @@ abstract class Observable implements ObservableInterface
      * A variant of distinct that only compares emitted items from the source Observable against their immediate predecessors in order to determine whether or not they are distinct.
      *
      * @param callable $comparer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo distinct/distinctUntilChanged.php
      * @operator
@@ -883,7 +927,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param callable $keySelector
      * @param callable $comparer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo distinct/distinctUntilKeyChanged.php
      * @operator
@@ -913,7 +957,7 @@ abstract class Observable implements ObservableInterface
      * @param callable|ObserverInterface $onNextOrObserver
      * @param callable $onError
      * @param callable $onCompleted
-     * @return Observable
+     * @return Observable<T>
      * @throws \InvalidArgumentException
      *
      * @demo do/do.php
@@ -936,26 +980,28 @@ abstract class Observable implements ObservableInterface
     }
 
     /**
-     * @deprecated Use `do`
-     * Alias for do
      *
      * @param ObserverInterface $observer
-     * @return mixed
+     * @return Observable<T>
      */
+    #[\Deprecated(message: <<<'TXT'
+    Use `do`
+     Alias for do
+    TXT)]
     public function doOnEach(ObserverInterface $observer): Observable
     {
         return $this->do($observer);
     }
 
     /**
-     * @deprecated Use `do`
      * @param callable $onNext
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo do/doOnNext.php
      * @operator
      * @reactivex do
      */
+    #[\Deprecated(message: 'Use `do`')]
     public function doOnNext(callable $onNext): Observable
     {
         return $this->do(new DoObserver(
@@ -965,7 +1011,7 @@ abstract class Observable implements ObservableInterface
 
     /**
      * @param callable $onError
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo do/doOnError.php
      * @operator
@@ -981,7 +1027,7 @@ abstract class Observable implements ObservableInterface
 
     /**
      * @param callable $onCompleted
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo do/doOnCompleted.php
      * @operator
@@ -1000,9 +1046,9 @@ abstract class Observable implements ObservableInterface
      * Applies an accumulator function over an observable sequence and returns each intermediate result.
      * The optional seed value is used as the initial accumulator value.
      *
-     * @param $accumulator
+     * @param callable $accumulator
      * @param mixed $seed
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo scan/scan.php
      * @demo scan/scan-with-seed.php
@@ -1019,7 +1065,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Creates an observable sequence containing a single element which is an array containing all the elements of the source sequence.
      *
-     * @return Observable An observable sequence containing a single element with a list containing all the
+     * @return Observable<T> An observable sequence containing a single element with a list containing all the
      * elements of the source sequence.
      *
      * @demo toArray/toArray.php
@@ -1041,7 +1087,7 @@ abstract class Observable implements ObservableInterface
      * elements to be delayed.
      *
      * @param integer $count Number of elements to bypass at the end of the source sequence.
-     * @return Observable An observable sequence containing the source sequence elements except for the
+     * @return Observable<T> An observable sequence containing the source sequence elements except for the
      * bypassed ones at the end.
      *
      * @demo skip/skipLast.php
@@ -1058,8 +1104,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns the values from the source observable sequence only after the other observable sequence produces a value.
      *
-     * @param mixed $other The observable sequence that triggers propagation of elements of the source sequence.
-     * @return Observable An observable sequence containing the elements of the source sequence starting
+     * @param ObservableInterface<T> $other The observable sequence that triggers propagation of elements of the source sequence.
+     * @return Observable<T> An observable sequence containing the elements of the source sequence starting
      * from the point the other sequence triggered propagation.
      *
      * @demo skip/skipUntil.php
@@ -1092,7 +1138,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Hides the identity of an observable sequence.
      *
-     * @return Observable An observable sequence that hides the identity of the source sequence.
+     * @return Observable<T> An observable sequence that hides the identity of the source sequence.
      *
      * @demo asObservable/asObservable.php
      * @operator
@@ -1108,8 +1154,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Concatenate an observable sequence onto the end of the source observable.
      *
-     * @param ObservableInterface $observable
-     * @return Observable
+     * @param ObservableInterface<T> $observable
+     * @return Observable<T>
      *
      * @demo concat/concat.php
      * @operator
@@ -1139,7 +1185,7 @@ abstract class Observable implements ObservableInterface
      *   - the index of the outer element
      *   - the index of the inner element
      *
-     * @return Observable - An observable sequence whose elements are the result of invoking the one-to-many
+     * @return Observable<T> - An observable sequence whose elements are the result of invoking the one-to-many
      * transform function collectionSelector on each element of the input sequence and then mapping each of those
      * sequence elements and their corresponding source element to a result element.
      *
@@ -1158,7 +1204,7 @@ abstract class Observable implements ObservableInterface
      * Projects each element of the source observable sequence to the other observable sequence and merges the
      * resulting observable sequences into one observable sequence.
      *
-     * @param ObservableInterface $observable - An an observable sequence to project each element from the source
+     * @param ObservableInterface<T> $observable - An an observable sequence to project each element from the source
      * sequence onto.
      *
      * @param callable $resultSelector A transform function to apply to each element of the intermediate sequence.
@@ -1168,7 +1214,7 @@ abstract class Observable implements ObservableInterface
      *   - the index of the outer element
      *   - the index of the inner element
      *
-     * @return Observable An observable sequence whose elements are the result of invoking the one-to-many
+     * @return Observable<T> An observable sequence whose elements are the result of invoking the one-to-many
      * transform function collectionSelector on each element of the input sequence and then mapping each of those
      * sequence elements and their corresponding source element to a result element.
      *
@@ -1186,7 +1232,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Concatenates a sequence of observable sequences into a single observable sequence.
      *
-     * @return Observable The observable sequence that merges the elements of the inner sequences.
+     * @return Observable<T> The observable sequence that merges the elements of the inner sequences.
      *
      * @demo concat/concatAll.php
      * @operator
@@ -1204,7 +1250,7 @@ abstract class Observable implements ObservableInterface
      * sequence satisfy a condition if provided, else the count of items.
      *
      * @param callable $predicate
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo count/count.php
      * @operator
@@ -1223,9 +1269,9 @@ abstract class Observable implements ObservableInterface
      * exposing the sequence resulting from the selector function's invocation. For specializations with fixed subject
      * types, see Publish, PublishLast, and Replay.
      *
-     * @param \Rx\Subject\Subject $subject
+     * @param Subject<T> $subject
      * @param callable|null $selector
-     * @return Observable
+     * @return ($selector is null ? ConnectableObservable<T> : MulticastObservable<T>)
      *
      * @demo multicast/multicast.php
      * @operator
@@ -1247,13 +1293,13 @@ abstract class Observable implements ObservableInterface
      * For specializations with fixed subject types, see Publish, PublishLast, and Replay.
      *
      * @param callable $subjectSelector
-     * @param callable|null $selector
-     * @return \Rx\Observable\ConnectableObservable|\Rx\Observable\MulticastObservable
+     * @param callable $selector
+     * @return MulticastObservable<T>
      *
      * @operator
      * @reactivex publish
      */
-    public function multicastWithSelector(callable $subjectSelector, ?callable $selector = null): MulticastObservable
+    public function multicastWithSelector(callable $subjectSelector, callable $selector): MulticastObservable
     {
         return new MulticastObservable($this, $subjectSelector, $selector);
     }
@@ -1264,15 +1310,19 @@ abstract class Observable implements ObservableInterface
      * This operator is a specialization of Multicast using a regular Subject.
      *
      * @param callable|null $selector
-     * @return \Rx\Observable\ConnectableObservable|\Rx\Observable\MulticastObservable
+     * @return ($selector is null ? ConnectableObservable<T> : MulticastObservable<T>)
      *
      * @demo publish/publish.php
      * @operator
      * @reactivex publish
      */
-    public function publish(?callable $selector = null): Observable
+    public function publish(?callable $selector = null): ObservableInterface
     {
-        return $this->multicast(new Subject(), $selector);
+        /**
+         * @var Subject<T> $subject
+         */
+        $subject = new Subject();
+        return $this->multicast($subject, $selector);
     }
 
     /**
@@ -1281,7 +1331,7 @@ abstract class Observable implements ObservableInterface
      * This operator is a specialization of Multicast using a AsyncSubject.
      *
      * @param callable|null $selector
-     * @return \Rx\Observable\ConnectableObservable|\Rx\Observable\MulticastObservable
+     * @return Observable<T>
      *
      * @demo publish/publishLast.php
      * @operator
@@ -1289,7 +1339,11 @@ abstract class Observable implements ObservableInterface
      */
     public function publishLast(?callable $selector = null): Observable
     {
-        return $this->multicast(new AsyncSubject(), $selector);
+        /**
+         * @var AsyncSubject<T> $subject
+         */
+        $subject = new AsyncSubject();
+        return $this->multicast($subject, $selector);
     }
 
     /**
@@ -1297,9 +1351,9 @@ abstract class Observable implements ObservableInterface
      * that shares a single subscription to the underlying sequence and starts with initialValue.
      * This operator is a specialization of Multicast using a BehaviorSubject.
      *
-     * @param mixed $initialValue
+     * @param T $initialValue
      * @param callable $selector
-     * @return \Rx\Observable\ConnectableObservable|\Rx\Observable\MulticastObservable
+     * @return ($selector is null ? ConnectableObservable<T> : MulticastObservable<T>)
      *
      * @demo publish/publishValue.php
      * @operator
@@ -1307,7 +1361,11 @@ abstract class Observable implements ObservableInterface
      */
     public function publishValue($initialValue, ?callable $selector = null): Observable
     {
-        return $this->multicast(new BehaviorSubject($initialValue), $selector);
+        /**
+         * @var BehaviorSubject<T> $subject
+         */
+        $subject = new BehaviorSubject($initialValue);
+        return $this->multicast($subject, $selector);
     }
 
     /**
@@ -1317,7 +1375,7 @@ abstract class Observable implements ObservableInterface
      * from zero to one, then shares that subscription with all subsequent observers until the number of observers
      * returns to zero, at which point the subscription is disposed.
      *
-     * @return \Rx\Observable\RefCountObservable An observable sequence that contains the elements of a sequence
+     * @return RefCountObservable<T> An observable sequence that contains the elements of a sequence
      * produced by multicasting the source sequence.
      *
      * @demo share/share.php
@@ -1335,7 +1393,7 @@ abstract class Observable implements ObservableInterface
      *
      * This operator behaves like share() in RxJS 5
      *
-     * @return \Rx\Observable An observable sequence that contains the elements of a sequence
+     * @return Observable<T> An observable sequence that contains the elements of a sequence
      * produced by multicasting the source sequence.
      *
      * @demo share/singleInstance.php
@@ -1358,12 +1416,20 @@ abstract class Observable implements ObservableInterface
                     ->publish()
                     ->refCount();
             }
+
+            assert($observable instanceof Observable);
             return $observable;
         };
 
-        return new Observable\AnonymousObservable(function (ObserverInterface $o) use ($getObservable) {
-            return $getObservable()->subscribe($o);
-        });
+        /**
+         * @var Observable<T>
+         * @phpstan-ignore varTag.nativeType
+         */
+        return new Observable\AnonymousObservable(
+            function (ObserverInterface $o) use ($getObservable) {
+                return $getObservable()->subscribe($o);
+            }
+        );
     }
 
     /**
@@ -1374,8 +1440,8 @@ abstract class Observable implements ObservableInterface
      * from zero to one, then shares that subscription with all subsequent observers until the number of observers
      * returns to zero, at which point the subscription is disposed.
      *
-     * @param $initialValue
-     * @return \Rx\Observable\RefCountObservable
+     * @param mixed $initialValue
+     * @return RefCountObservable<T>
      *
      * @demo share/shareValue.php
      * @operator
@@ -1397,7 +1463,7 @@ abstract class Observable implements ObservableInterface
      * @param integer|null $bufferSize
      * @param integer|null $windowSize
      * @param \Rx\SchedulerInterface|null $scheduler
-     * @return \Rx\Observable\ConnectableObservable|\Rx\Observable\MulticastObservable
+     * @return ($selector is null ? ConnectableObservable<T> : MulticastObservable<T>)
      *
      * @demo replay/replay.php
      * @operator
@@ -1405,7 +1471,11 @@ abstract class Observable implements ObservableInterface
      */
     public function replay(?callable $selector = null, ?int $bufferSize = null, ?int $windowSize = null, ?SchedulerInterface $scheduler = null): Observable
     {
-        return $this->multicast(new ReplaySubject($bufferSize, $windowSize, $scheduler ?: Scheduler::getDefault()), $selector);
+        /**
+         * @var ReplaySubject<T> $subject
+         */
+        $subject = new ReplaySubject($bufferSize, $windowSize, $scheduler ?: Scheduler::getDefault());
+        return $this->multicast($subject, $selector);
     }
 
     /**
@@ -1418,8 +1488,8 @@ abstract class Observable implements ObservableInterface
      *
      * @param integer $bufferSize
      * @param integer $windowSize
-     * @param $scheduler
-     * @return \Rx\Observable\RefCountObservable
+     * @param SchedulerInterface $scheduler
+     * @return RefCountObservable<T>
      *
      * @demo share/shareReplay.php
      * @operator
@@ -1436,9 +1506,9 @@ abstract class Observable implements ObservableInterface
      * result selector function is omitted, a list with the elements of the observable sequences at corresponding
      * indexes will be yielded.
      *
-     * @param array $observables
+     * @param array<Observable<T>> $observables
      * @param callable $selector
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo zip/zip.php
      * @demo zip/zip-result-selector.php
@@ -1455,9 +1525,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Runs all observable sequences in parallel and collect their last elements.
      *
-     * @param array $observables
+     * @param array<Observable<T>> $observables
      * @param callable|null $resultSelector
-     * @return ForkJoinObservable
+     * @return ForkJoinObservable<T>
      *
      * @demo forkJoin/forkJoin.php
      * @operator
@@ -1474,7 +1544,7 @@ abstract class Observable implements ObservableInterface
      * retry once, then you must use ->retry(2).
      *
      * @param int $retryCount
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo retry/retry.php
      * @operator
@@ -1492,7 +1562,7 @@ abstract class Observable implements ObservableInterface
      * errors and the notifier completes, it will complete the source sequence.
      *
      * @param callable $notifier
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo retry/retryWhen.php
      * @operator
@@ -1510,9 +1580,9 @@ abstract class Observable implements ObservableInterface
      * any of the observable sequences produces an element. Observables need to be an array.
      * If the result selector is omitted, a list with the elements will be yielded.
      *
-     * @param array $observables
+     * @param array<ObservableInterface<T>> $observables
      * @param callable|null $selector
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo combineLatest/combineLatest.php
      * @operator
@@ -1528,9 +1598,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Merges the specified observable sequences into one observable sequence by using the selector function only when the (first) source observable sequence produces an element.
      *
-     * @param array $observables
+     * @param array<ObservableInterface<T>> $observables
      * @param callable|null $selector
-     * @return Observable - An observable sequence containing the result of combining elements of the sources using the specified result selector function.
+     * @return Observable<T> - An observable sequence containing the result of combining elements of the sources using the specified result selector function.
      *
      * @demo withLatestFrom/withLatestFrom.php
      * @operator
@@ -1546,8 +1616,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Returns the specified value of an observable if the sequence is empty.
      *
-     * @param ObservableInterface $observable
-     * @return Observable
+     * @param ObservableInterface<T> $observable
+     * @return Observable<T>
      *
      * @demo defaultIfEmpty/defaultIfEmpty.php
      * @operator
@@ -1564,7 +1634,7 @@ abstract class Observable implements ObservableInterface
      * Generates an observable sequence that repeats the given element the specified number of times.
      *
      * @param int $count
-     * @return Observable|EmptyObservable
+     * @return Observable<T>|EmptyObservable<T>
      *
      * @demo repeat/repeat.php
      * @operator
@@ -1573,6 +1643,10 @@ abstract class Observable implements ObservableInterface
     public function repeat(int $count = -1): Observable
     {
         if ($count === 0) {
+            /**
+             * @var Observable<T>
+             * @phpstan-ignore varTag.nativeType
+             */
             return self::empty();
         }
 
@@ -1589,7 +1663,7 @@ abstract class Observable implements ObservableInterface
      * resubscribe to the source observable.
      *
      * @param callable $notifier
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo repeat/repeatWhen.php
      * @operator
@@ -1606,7 +1680,7 @@ abstract class Observable implements ObservableInterface
      * Wraps the source sequence in order to run its subscription and unsubscription logic on the specified scheduler.
      *
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<T>
      */
     public function subscribeOn(SchedulerInterface $scheduler): Observable
     {
@@ -1618,9 +1692,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Time shifts the observable sequence by dueTime. The relative time intervals between the values are preserved.
      *
-     * @param $delay
+     * @param int $delay
      * @param AsyncSchedulerInterface|null $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo delay/delay.php
      * @operator
@@ -1637,10 +1711,10 @@ abstract class Observable implements ObservableInterface
      * Errors the observable sequence if no item is emitted in the specified time.
      * When a timeout occurs, this operator errors with an instance of Rx\Exception\TimeoutException
      *
-     * @param $timeout
-     * @param ObservableInterface $timeoutObservable
+     * @param int $timeout
+     * @param ?ObservableInterface<T> $timeoutObservable
      * @param AsyncSchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo timeout/timeout.php
      * @operator
@@ -1659,7 +1733,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param $count
      * @param int $skip
-     * @return Observable
+     * @return Observable<T>
      * @throws \InvalidArgumentException
      *
      * @demo bufferWithCount/bufferWithCount.php
@@ -1678,13 +1752,13 @@ abstract class Observable implements ObservableInterface
      * Continues an observable sequence that is terminated by an exception with the next observable sequence.
      *
      * @param callable $selector
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo catch/catch.php
      * @operator
      * @reactivex catch
      */
-    public function catch(callable $selector): Observable
+    public function catch (callable $selector): Observable
     {
         return $this->lift(function () use ($selector) {
             return new CatchErrorOperator(new ObservableFactoryWrapper($selector));
@@ -1692,12 +1766,14 @@ abstract class Observable implements ObservableInterface
     }
 
     /**
-     * @deprecated Use `catch`
-     * Alias for catch
      *
      * @param callable $selector
-     * @return Observable
+     * @return Observable<T>
      */
+    #[\Deprecated(message: <<<'TXT'
+    Use `catch`
+     Alias for catch
+    TXT)]
     public function catchError(callable $selector): Observable
     {
         return $this->catch($selector);
@@ -1708,7 +1784,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param mixed $startValue
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo startWith/startWith.php
      * @operator
@@ -1722,9 +1798,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Prepends a sequence of values to an observable sequence with an argument of an array of values to prepend.
      *
-     * @param array $startArray
+     * @param array<T> $startArray
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo startWith/startWithArray.php
      * @operator
@@ -1741,7 +1817,7 @@ abstract class Observable implements ObservableInterface
      * Returns the minimum value in an observable sequence according to the specified comparer.
      *
      * @param callable $comparer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo min/min.php
      * @demo min/min-with-comparer.php
@@ -1759,7 +1835,7 @@ abstract class Observable implements ObservableInterface
      * Returns the maximum value in an observable sequence according to the specified comparer.
      *
      * @param callable $comparer
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo max/max.php
      * @demo max/max-with-comparer.php
@@ -1776,7 +1852,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Materializes the implicit notifications of an observable sequence as explicit notifications.
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @operator
      * @reactivex materialize-dematerialize
@@ -1791,7 +1867,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Dematerializes the explicit notification values of an observable sequence as implicit notifications.
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @operator
      * @reactivex materialize-dematerialize
@@ -1807,7 +1883,7 @@ abstract class Observable implements ObservableInterface
      * Records the timestamp for each value in an observable sequence.
      *
      * @param SchedulerInterface|null $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo timestamp/timestamp.php
      * @operator
@@ -1824,14 +1900,14 @@ abstract class Observable implements ObservableInterface
      * Transforms an observable sequence of observable sequences into an observable sequence producing values only
      * from the most recent observable sequence.
      *
-     * @return Observable - The observable sequence that at any point in time produces the elements of the most
+     * @return Observable<T> - The observable sequence that at any point in time produces the elements of the most
      * recent inner observable sequence that has been received.
      *
      * @demo switch/switch.php
      * @operator
      * @reactivex switch
      */
-    public function switch(): Observable
+    public function switch (): Observable
     {
         return $this->lift(function () {
             return new SwitchLatestOperator();
@@ -1839,11 +1915,12 @@ abstract class Observable implements ObservableInterface
     }
 
     /**
-     * @deprecated Use `switch`
-     * Alias for switch
-     *
-     * @return Observable
+     * @return Observable<T>
      */
+    #[\Deprecated(message: <<<'TXT'
+    Use `switch`
+     Alias for switch
+    TXT)]
     public function switchLatest(): Observable
     {
         return $this->switch();
@@ -1857,7 +1934,7 @@ abstract class Observable implements ObservableInterface
      * This operator is similar to concatAll() except that it will not hold onto Observables that come in before the
      * current one is finished completed.
      *
-     * @return Observable - An Observable sequence that is the result of concatenating non-overlapping items
+     * @return Observable<T> - An Observable sequence that is the result of concatenating non-overlapping items
      * emitted by an Observable of Observables.
      *
      * @demo switch/switchFirst.php
@@ -1880,7 +1957,7 @@ abstract class Observable implements ObservableInterface
      * when the source completes.
      *
      * @param callable $predicate
-     * @return Observable[]
+     * @return array<Observable<T>>
      *
      * @demo partition/partition.php
      * @operator
@@ -1899,9 +1976,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Propagates the observable sequence that reacts first.  Also known as 'amb'.
      *
-     * @param Observable[] $observables
+     * @param array<Observable<T>> $observables
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo race/race.php
      * @operator
@@ -1913,6 +1990,7 @@ abstract class Observable implements ObservableInterface
             return $observables[0];
         }
 
+        /** @phpstan-ignore-next-line */
         return static::fromArray($observables, $scheduler)->lift(function () {
             return new RaceOperator();
         });
@@ -1921,7 +1999,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Computes the sum of a sequence of values
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo sum/sum.php
      * @operator
@@ -1931,6 +2009,8 @@ abstract class Observable implements ObservableInterface
     {
         return $this
             ->reduce(function ($a, $x) {
+                /** @var int|float $a */
+                /** @var int|float $x */
                 return $a + $x;
             }, 0);
     }
@@ -1938,7 +2018,7 @@ abstract class Observable implements ObservableInterface
     /**
      * Computes the average of an observable sequence of values.
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo average/average.php
      * @operator
@@ -1946,12 +2026,21 @@ abstract class Observable implements ObservableInterface
      */
     public function average(): Observable
     {
+        /**
+         * @var ObservableInterface<T> $fallback
+         * @phpstan-ignore varTag.nativeType
+         */
+        $fallback = Observable::error(new \UnderflowException());
+
         return $this
-            ->defaultIfEmpty(Observable::error(new \UnderflowException()))
+            ->defaultIfEmpty($fallback)
             ->reduce(function ($a, $x) {
+                /** @var int $count */
                 static $count = 0;
+                /** @var int|float $total */
                 static $total = 0;
 
+                /** @var int|float $x */
                 $count++;
                 $total += $x;
 
@@ -1960,11 +2049,8 @@ abstract class Observable implements ObservableInterface
     }
 
     /**
-     * Returns an Observable containing the value of a specified array index (if array) or property (if object) from
-     * all elements in the Observable sequence. If a property can't be resolved the observable will error.
-     *
-     * @param mixed $property
-     * @return Observable
+     * @param string|int $property
+     * @return Observable<mixed>
      *
      * @demo pluck/pluck.php
      * @operator
@@ -1974,6 +2060,7 @@ abstract class Observable implements ObservableInterface
     {
         $args = func_get_args();
         if (count($args) > 1) {
+            /** @phpstan-ignore-next-line */
             return call_user_func_array([$this->pluck(array_shift($args)), 'pluck'], $args);
         }
 
@@ -1981,7 +2068,7 @@ abstract class Observable implements ObservableInterface
             if (is_array($x) && array_key_exists($property, $x)) {
                 return $x[$property];
             }
-            if (is_object($x) && property_exists($x, $property)) {
+            if (is_object($x) && is_string($property) && property_exists($x, $property)) {
                 return $x->$property;
             }
 
@@ -1998,7 +2085,7 @@ abstract class Observable implements ObservableInterface
      *
      * @param $throttleDuration
      * @param SchedulerInterface $scheduler
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo throttle/throttle.php
      * @operator
@@ -2014,7 +2101,7 @@ abstract class Observable implements ObservableInterface
     /**
      * If the source Observable is empty it returns an Observable that emits true, otherwise it emits false.
      *
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo isEmpty/isEmpty.php
      * @demo isEmpty/isEmpty-false.php
@@ -2032,7 +2119,7 @@ abstract class Observable implements ObservableInterface
      * Will call a specified function when the source terminates on complete or error.
      *
      * @param callable $callback
-     * @return Observable
+     * @return Observable<T>
      *
      * @demo finally/finally.php
      * @demo finally/finally-error.php
@@ -2049,8 +2136,9 @@ abstract class Observable implements ObservableInterface
     /**
      * Converts a promise into an observable
      *
-     * @param PromiseInterface $promise
-     * @return Observable
+     * @template X
+     * @param PromiseInterface<X> $promise
+     * @return Observable<X>
      * @throws \InvalidArgumentException
      *
      * @demo promise/fromPromise.php
@@ -2065,8 +2153,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Converts Observable into a Promise
      *
-     * @param Deferred $deferred
-     * @return PromiseInterface
+     * @param ?Deferred<T> $deferred
+     * @return PromiseInterface<T>
      * @throws \InvalidArgumentException
      */
     public function toPromise(?Deferred $deferred = null): PromiseInterface
@@ -2077,8 +2165,8 @@ abstract class Observable implements ObservableInterface
     /**
      * Will apply given function to the source observable.
      *
-     * @param callable $compose function that applies operators to source observable. Must return observable.
-     * @return Observable
+     * @param callable(Observable<T>): Observable<T> $compose function that applies operators to source observable. Must return observable.
+     * @return Observable<T>
      *
      * @demo compose/compose.php
      */

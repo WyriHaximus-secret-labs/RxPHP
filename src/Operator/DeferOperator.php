@@ -9,10 +9,15 @@ use Rx\Observable;
 use Rx\ObservableInterface;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class DeferOperator implements OperatorInterface
 {
-
-    /* @var Callable */
+    /**
+     * @var (callable(): Observable<T>)
+     */
     private $factory;
 
     public function __construct(callable $factory)

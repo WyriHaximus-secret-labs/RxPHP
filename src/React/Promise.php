@@ -2,62 +2,71 @@
 
 namespace Rx\React;
 
-use React\Promise\Promise as ReactPromise;
 use React\Promise\PromiseInterface;
 use Rx\Disposable\CallbackDisposable;
+use Rx\DisposableInterface;
 use Rx\ObservableInterface;
 use Rx\Observable;
 use Rx\Observable\AnonymousObservable;
 use Rx\Subject\AsyncSubject;
 use React\Promise\Deferred;
 use Throwable;
+use function React\Promise\reject;
+use function React\Promise\resolve;
 
+/**
+ * @template T
+ */
 final class Promise
 {
     /**
-     * @param mixed $value
-     * @return ReactPromise A promise resolved to $value
+     * @param T $value
+     * @return PromiseInterface<T> A promise resolved to $value
      */
-    public static function resolved($value): ReactPromise
+    public static function resolved($value): PromiseInterface
     {
-        $d = new Deferred();
-        $d->resolve($value);
-        return $d->promise();
+        return resolve($value);
     }
 
     /**
      * @param mixed $exception
-     * @return ReactPromise A promise rejected with $exception
+     * @return PromiseInterface<never> A promise rejected with $exception
      */
-    public static function rejected($exception): ReactPromise
+    public static function rejected($exception): PromiseInterface
     {
-        $d = new Deferred();
-        $d->reject($exception instanceof Throwable ? $exception : new RejectedPromiseException($exception));
-        return $d->promise();
+        return reject($exception instanceof Throwable ? $exception : new RejectedPromiseException($exception));
     }
 
     /**
      * Converts an existing observable sequence to React Promise
      *
-     * @param ObservableInterface $observable
-     * @param Deferred $deferred
-     * @return ReactPromise
+     * @template X
+     * @param ObservableInterface<X> $observable
+     * @param ?Deferred<X> $deferred
+     * @return PromiseInterface<X>
      * @throws \InvalidArgumentException
      */
-    public static function fromObservable(ObservableInterface $observable, ?Deferred $deferred = null): ReactPromise
+    public static function fromObservable(ObservableInterface $observable, ?Deferred $deferred = null): PromiseInterface
     {
-
+        /**
+         * @var ?DisposableInterface $subscription
+         */
+        $subscription = null;
         $d = $deferred ?: new Deferred(function () use (&$subscription): void {
+            assert($subscription instanceof DisposableInterface);
             $subscription->dispose();
         });
 
+        /**
+         * @var X $value
+         */
         $value = null;
 
         $subscription = $observable->subscribe(
             function ($v) use (&$value): void {
                 $value = $v;
             },
-            function ($error) use ($d): void {
+            function (\Throwable $error) use ($d): void {
                 $d->reject($error);
             },
             function () use ($d, &$value): void {
@@ -71,12 +80,16 @@ final class Promise
     /**
      * Converts a Promise to an Observable sequence
      *
-     * @param PromiseInterface $promise
-     * @return Observable
+     * @template X
+     * @param PromiseInterface<X> $promise
+     * @return Observable<X>
      * @throws \InvalidArgumentException
      */
     public static function toObservable(PromiseInterface $promise): Observable
     {
+        /**
+         * @var AsyncSubject<X> $subject
+         */
         $subject = new AsyncSubject();
 
         $p = $promise->then(
@@ -84,16 +97,20 @@ final class Promise
                 $subject->onNext($value);
                 $subject->onCompleted();
             },
-            function ($error) use ($subject): void {
-                $error = $error instanceof \Throwable ? $error : new RejectedPromiseException($error);
+            function (\Throwable $error) use ($subject): void {
                 $subject->onError($error);
             }
         );
 
+        /**
+         * @var Observable<X>
+         * @phpstan-ignore varTag.nativeType
+         */
         return new AnonymousObservable(function ($observer) use ($subject, $p) {
             $disp = $subject->subscribe($observer);
             return new CallbackDisposable(function () use ($p, $disp): void {
                 $disp->dispose();
+                /** @phpstan-ignore function.alreadyNarrowedType */
                 if (\method_exists($p, 'cancel')) {
                     $p->cancel();
                 }

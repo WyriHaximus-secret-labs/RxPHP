@@ -9,8 +9,14 @@ use Rx\ObservableInterface;
 use Rx\ObserverInterface;
 use Rx\Observer\CallbackObserver;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class DoOnEachOperator implements OperatorInterface
 {
+    /**
+     * @var ObserverInterface
+     */
     private $onEachObserver;
 
     public function __construct(ObserverInterface $observer)
@@ -21,28 +27,31 @@ final class DoOnEachOperator implements OperatorInterface
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
     {
         $cbObserver = new CallbackObserver(
-            function ($x) use ($observer) {
+            function ($x) use ($observer): void {
                 try {
                     $this->onEachObserver->onNext($x);
                 } catch (\Throwable $e) {
-                    return $observer->onError($e);
+                    $observer->onError($e);
+                    return;
                 }
                 $observer->onNext($x);
 
             },
-            function ($err) use ($observer) {
+            function ($err) use ($observer): void {
                 try {
                     $this->onEachObserver->onError($err);
                 } catch (\Throwable $e) {
-                    return $observer->onError($e);
+                    $observer->onError($e);
+                    return;
                 }
                 $observer->onError($err);
             },
-            function () use ($observer) {
+            function () use ($observer): void {
                 try {
                     $this->onEachObserver->onCompleted();
                 } catch (\Throwable $e) {
-                    return $observer->onError($e);
+                    $observer->onError($e);
+                    return;
                 }
                 $observer->onCompleted();
             }

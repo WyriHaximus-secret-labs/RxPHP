@@ -12,6 +12,10 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class CatchErrorOperator implements OperatorInterface
 {
 
@@ -29,13 +33,13 @@ final class CatchErrorOperator implements OperatorInterface
         $disposable = new CompositeDisposable();
 
         $onError = function (\Throwable $e) use (&$isDisposed, $observer, $observable, $disposable): void {
-
+            /** @phpstan-ignore-next-line */
             if ($isDisposed) {
                 return;
             }
 
             try {
-                /** @var Observable $result */
+                /** @var Observable<T> $result */
                 $result = ($this->errorSelector)($e, $observable);
 
                 $subscription = $result->subscribe($observer);

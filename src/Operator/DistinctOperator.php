@@ -11,13 +11,15 @@ use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 use Rx\SchedulerInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class DistinctOperator implements OperatorInterface
 {
-
-    /** @var callable */
+    /** @var ?callable */
     protected $keySelector;
 
-    /** @var callable */
+    /** @var ?callable */
     protected $comparer;
 
     public function __construct(?callable $keySelector = null, ?callable $comparer = null)
@@ -31,8 +33,7 @@ final class DistinctOperator implements OperatorInterface
         $values = [];
 
         $callbackObserver = new CallbackObserver(
-            function ($value) use ($observer, &$values) {
-
+            function ($value) use ($observer, &$values): void {
                 try {
                     $key = $this->keySelector ? ($this->keySelector)($value) : $value;
 
@@ -46,6 +47,7 @@ final class DistinctOperator implements OperatorInterface
                         }
                         $values[] = $key;
                     } else {
+                        /** @var array-key $key */
                         if (array_key_exists($key, $values)) {
                             return;
                         }
@@ -55,7 +57,7 @@ final class DistinctOperator implements OperatorInterface
                     $observer->onNext($value);
 
                 } catch (\Throwable $e) {
-                    return $observer->onError($e);
+                    $observer->onError($e);
                 }
             },
             [$observer, 'onError'],

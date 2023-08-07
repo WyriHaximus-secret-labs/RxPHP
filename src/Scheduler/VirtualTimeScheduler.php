@@ -9,17 +9,33 @@ use Rx\Disposable\CallbackDisposable;
 use Rx\Disposable\EmptyDisposable;
 use Rx\Disposable\SerialDisposable;
 use Rx\DisposableInterface;
+use Rx\SchedulerInterface;
 
 class VirtualTimeScheduler implements AsyncSchedulerInterface
 {
+    /**
+     * @var int
+     */
     protected $clock;
+
+    /**
+     * @var callable(int, int): int
+     */
     protected $comparer;
+
+    /**
+     * @var bool
+     */
     protected $isEnabled = false;
+
+    /**
+     * @var PriorityQueue
+     */
     protected $queue;
 
     /**
      * @param integer $initialClock Initial value for the clock.
-     * @param callable $comparer Comparer to determine causality of events based on absolute time.
+     * @param callable(int, int): int $comparer Comparer to determine causality of events based on absolute time.
      */
     public function __construct(int $initialClock, callable $comparer)
     {
@@ -30,8 +46,8 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
 
     public function schedule(callable $action, $delay = 0): DisposableInterface
     {
-
-        $invokeAction = function ($scheduler, $action) {
+        $invokeAction = function (SchedulerInterface $scheduler, $action): DisposableInterface {
+            /** @var callable(): mixed $action */
             $action();
             return new EmptyDisposable();
         };
@@ -41,10 +57,9 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
 
     public function scheduleRecursive(callable $action): DisposableInterface
     {
-        $goAgain    = true;
         $disposable = new SerialDisposable();
 
-        $recursiveAction = function () use ($action, &$goAgain, $disposable, &$recursiveAction): void {
+        $recursiveAction = function () use ($action, $disposable, &$recursiveAction): void {
             $disposable->setDisposable($this->schedule(function () use ($action, &$recursiveAction): void {
                 $action(function () use (&$recursiveAction): void {
                     $recursiveAction();
@@ -62,9 +77,10 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
         return $this->clock;
     }
 
-    public function scheduleAbsolute(int $dueTime, $action): DisposableInterface
+    public function scheduleAbsolute(int $dueTime, callable $action): DisposableInterface
     {
-        $invokeAction = function ($scheduler, $action) {
+        $invokeAction = function (SchedulerInterface $scheduler, $action): DisposableInterface {
+            /** @var callable(): mixed $action */
             $action();
             return new EmptyDisposable();
         };
@@ -72,16 +88,23 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
         return $this->scheduleAbsoluteWithState($action, $dueTime, $invokeAction);
     }
 
+    /**
+     * @param mixed $state
+     */
     public function scheduleAbsoluteWithState($state, int $dueTime, callable $action): DisposableInterface
     {
         $queue = $this->queue;
 
         $scheduledItem = null;
 
-        $run = function ($scheduler, $state1) use ($action, &$scheduledItem, &$queue) {
+        $run = function (SchedulerInterface $scheduler, $state1) use ($action, &$scheduledItem, &$queue): DisposableInterface {
+            assert($scheduledItem instanceof ScheduledItem); /** @phpstan-ignore-line */
             $queue->remove($scheduledItem);
 
-            return $action($scheduler, $state1);
+            /** @var DisposableInterface $result */
+            $result = $action($scheduler, $state1);
+
+            return $result;
         };
 
         $scheduledItem = new ScheduledItem($this, $state, $run, $dueTime);
@@ -94,7 +117,10 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
         });
     }
 
-    public function scheduleRelativeWithState($state, $dueTime, $action): DisposableInterface
+    /**
+     * @param mixed $state
+     */
+    public function scheduleRelativeWithState($state, int $dueTime, callable $action): DisposableInterface
     {
         $runAt = $this->now() + $dueTime;
 
@@ -127,6 +153,9 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
         return $disposable;
     }
 
+    /**
+     * @return void
+     */
     public function start()
     {
         if (!$this->isEnabled) {
@@ -152,6 +181,9 @@ class VirtualTimeScheduler implements AsyncSchedulerInterface
         }
     }
 
+    /**
+     * @return ?ScheduledItem
+     */
     public function getNext()
     {
         while ($this->queue->count() > 0) {

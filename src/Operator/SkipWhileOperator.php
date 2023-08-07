@@ -9,14 +9,20 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class SkipWhileOperator implements OperatorInterface
 {
-    /** @var callable */
+    /** @var callable(mixed, ObservableInterface<mixed>): bool */
     private $predicate;
 
     /** @var bool */
     private $isSkipping;
 
+    /**
+     * @param callable(mixed, ObservableInterface<mixed>): bool $predicate
+     */
     public function __construct(callable $predicate)
     {
         $this->predicate  = $predicate;
@@ -30,7 +36,7 @@ final class SkipWhileOperator implements OperatorInterface
                 try {
 
                     if ($this->isSkipping) {
-                        $this->isSkipping = ($this->predicate)($value, $observable);
+                        $this->isSkipping = (bool) ($this->predicate)($value, $observable);
                     }
 
                     if (!$this->isSkipping) {

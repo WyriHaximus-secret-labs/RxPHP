@@ -9,12 +9,16 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class TakeLastOperator implements OperatorInterface
 {
     /** @var integer */
     private $count;
 
-    /** @var array */
+    /** @var array<T> */
     private $items = [];
 
     public function __construct(int $count)
@@ -29,7 +33,7 @@ final class TakeLastOperator implements OperatorInterface
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
     {
         $callbackObserver = new CallbackObserver(
-            function ($nextValue) use ($observer): void {
+            function ($nextValue): void {
                 $this->items[] = $nextValue;
 
                 if (count($this->items) > $this->count) {

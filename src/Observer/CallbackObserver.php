@@ -4,17 +4,25 @@ declare(strict_types = 1);
 
 namespace Rx\Observer;
 
+/**
+ * @template T
+ */
 class CallbackObserver extends AbstractObserver
 {
-    /** @var callable|null */
+    /** @var callable(T): void */
     private $onNext;
 
-    /** @var callable|null */
+    /** @var callable(\Throwable): void */
     private $onError;
 
-    /** @var callable|null */
+    /** @var callable(): void */
     private $onCompleted;
 
+    /**
+     * @param (callable(T): void)|null $onNext
+     * @param (callable(\Throwable): void)|null $onError
+     * @param (callable(): void)|null $onCompleted
+     */
     public function __construct(?callable $onNext = null, ?callable $onError = null, ?callable $onCompleted = null)
     {
         $default = function (): void {
@@ -22,7 +30,7 @@ class CallbackObserver extends AbstractObserver
 
         $this->onNext = $this->getOrDefault($onNext, $default);
 
-        $this->onError = $this->getOrDefault($onError, function ($e): void {
+        $this->onError = $this->getOrDefault($onError, function (\Throwable $e): void {
             throw $e;
         });
 
@@ -40,12 +48,19 @@ class CallbackObserver extends AbstractObserver
         ($this->onError)($error);
     }
 
+    /**
+     * @param T $value
+     * @return void
+     */
     protected function next($value)
     {
         ($this->onNext)($value);
     }
 
-    private function getOrDefault(?callable $callback = null, $default = null): callable
+    /**
+     * @param callable|null $callback
+     */
+    private function getOrDefault(?callable $callback, callable $default): callable
     {
         if (null === $callback) {
             return $default;

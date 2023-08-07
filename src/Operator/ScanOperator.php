@@ -9,12 +9,25 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class ScanOperator implements OperatorInterface
 {
+    /**
+     * @var callable
+     */
     private $accumulator;
 
+    /**
+     * @var mixed|null
+     */
     private $seed;
 
+    /**
+     * @param callable $accumulator
+     * @param mixed|null $seed
+     */
     public function __construct(callable $accumulator, $seed = null)
     {
         $this->accumulator = $accumulator;
@@ -44,6 +57,7 @@ final class ScanOperator implements OperatorInterface
             },
             [$observer, 'onError'],
             function () use ($observer, &$hasValue, &$hasSeed): void {
+                /** @phpstan-ignore-next-line */
                 if (!$hasValue && $hasSeed) {
                     $observer->onNext($this->seed);
                 }
@@ -54,7 +68,7 @@ final class ScanOperator implements OperatorInterface
         return $observable->subscribe($cbObserver);
     }
 
-    private function tryCatch($functionToWrap)
+    private function tryCatch(callable $functionToWrap): callable
     {
         return function ($x, $y) use ($functionToWrap) {
             try {

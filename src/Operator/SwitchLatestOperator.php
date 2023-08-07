@@ -12,6 +12,9 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class SwitchLatestOperator implements OperatorInterface
 {
     /** @var bool */
@@ -36,7 +39,7 @@ final class SwitchLatestOperator implements OperatorInterface
 
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
     {
-        $onNext = function ($innerSource) use ($observer): void {
+        $onNext = function (ObservableInterface $innerSource) use ($observer): void {
             $innerDisposable = new SingleAssignmentDisposable();
 
             $id = ++$this->latest;

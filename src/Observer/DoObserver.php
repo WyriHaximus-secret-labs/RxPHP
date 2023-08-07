@@ -6,17 +6,25 @@ namespace Rx\Observer;
 
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ */
 class DoObserver implements ObserverInterface
 {
-    /** @var callable|null */
+    /** @var callable(T): void */
     private $onNext;
 
-    /** @var callable|null */
+    /** @var callable(\Throwable): void */
     private $onError;
 
-    /** @var callable|null */
+    /** @var callable(): void */
     private $onCompleted;
 
+    /**
+     * @param (callable(T): void)|null $onNext
+     * @param (callable(\Throwable): void)|null $onError
+     * @param (callable(): void)|null $onCompleted
+     */
     public function __construct(?callable $onNext = null, ?callable $onError = null, ?callable $onCompleted = null)
     {
         $default = function (): void {
@@ -24,7 +32,7 @@ class DoObserver implements ObserverInterface
 
         $this->onNext = $this->getOrDefault($onNext, $default);
 
-        $this->onError = $this->getOrDefault($onError, function ($e): void {
+        $this->onError = $this->getOrDefault($onError, function (\Throwable $e): void {
             throw $e;
         });
 
@@ -41,12 +49,19 @@ class DoObserver implements ObserverInterface
         ($this->onError)($error);
     }
 
+    /**
+     * @param T $value
+     * @return void
+     */
     public function onNext($value)
     {
         ($this->onNext)($value);
     }
 
-    private function getOrDefault(?callable $callback = null, $default = null): callable
+    /**
+     * @param callable|null $callback
+     */
+    private function getOrDefault(?callable $callback, callable $default): callable
     {
         if (null === $callback) {
             return $default;

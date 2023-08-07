@@ -9,8 +9,14 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class TakeOperator implements OperatorInterface
 {
+    /**
+     * @var int
+     */
     private $count;
 
     public function __construct(int $count)

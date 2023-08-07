@@ -13,15 +13,19 @@ use Rx\ObservableInterface;
 use Rx\ObserverInterface;
 use Rx\Subject\Subject;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class RepeatWhenOperator implements OperatorInterface
 {
-    /** @var callable */
+    /** @var callable(ObservableInterface<mixed>): ObservableInterface<mixed> */
     private $notificationHandler;
 
-    /** @var Subject */
+    /** @var Subject<int> */
     private $completions;
 
-    /** @var Subject */
+    /** @var Subject<T> */
     private $notifier;
 
     /** @var CompositeDisposable */
@@ -36,6 +40,9 @@ final class RepeatWhenOperator implements OperatorInterface
     /** @var bool */
     private $sourceComplete;
 
+    /**
+     * @param callable(ObservableInterface<mixed>): ObservableInterface<mixed> $notificationHandler
+     */
     public function __construct(callable $notificationHandler)
     {
         $this->notificationHandler = $notificationHandler;
@@ -52,12 +59,12 @@ final class RepeatWhenOperator implements OperatorInterface
         $outerDisposable = new SerialDisposable();
         $this->disposable->add($outerDisposable);
 
-        $subscribe = function () use ($outerDisposable, $observable, $observer, &$subscribe): void {
+        $subscribe = function () use ($outerDisposable, $observable, $observer): void {
             $this->sourceComplete = false;
             $outerSubscription    = $observable->subscribe(new CallbackObserver(
                 [$observer, 'onNext'],
                 [$observer, 'onError'],
-                function () use ($observer, &$subscribe, $outerDisposable): void {
+                function () use ($observer, $outerDisposable): void {
                     $this->sourceComplete = true;
                     if (!$this->repeat) {
                         $observer->onCompleted();
@@ -90,6 +97,7 @@ final class RepeatWhenOperator implements OperatorInterface
         $this->disposable->add($notifierDisposable);
 
         try {
+            /** @var ObservableInterface<mixed> $handled */
             $handled = ($this->notificationHandler)($this->completions->asObservable());
 
             $handledDisposable = $handled->subscribe($this->notifier);

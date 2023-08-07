@@ -9,8 +9,14 @@ use Rx\Observable;
 use Rx\ObserverInterface;
 use Rx\AsyncSchedulerInterface;
 
+/**
+ * @template-extends Observable<int>
+ */
 class IntervalObservable extends Observable
 {
+    /**
+     * @var int
+     */
     private $interval;
 
     /** @var AsyncSchedulerInterface */

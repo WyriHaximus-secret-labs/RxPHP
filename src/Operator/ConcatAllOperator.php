@@ -12,15 +12,19 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class ConcatAllOperator implements OperatorInterface
 {
-    /** @var  array */
+    /** @var array<ObservableInterface<T>> */
     private $buffer;
 
     /** @var CompositeDisposable */
     private $disposable;
 
-    /** @var SerialDisposable */
+    /** @var DisposableInterface */
     private $innerDisposable;
 
     /** @var bool */
@@ -45,7 +49,7 @@ final class ConcatAllOperator implements OperatorInterface
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
     {
         $subscription = $observable->subscribe(new CallbackObserver(
-            function (ObservableInterface $innerObservable) use ($observable, $observer): void {
+            function (ObservableInterface $innerObservable) use ($observer): void {
                 try {
 
                     if ($this->startBuffering === true) {
@@ -67,13 +71,14 @@ final class ConcatAllOperator implements OperatorInterface
                         }
 
                         if ($obs) {
+                            /** @phpstan-ignore-next-line */
                             $subscribeToInner($obs);
                         } elseif ($this->sourceCompleted === true) {
                             $observer->onCompleted();
                         }
                     };
 
-                    $subscribeToInner = function ($observable) use ($observer, &$onCompleted): void {
+                    $subscribeToInner = function (ObservableInterface $observable) use ($observer, &$onCompleted): void {
                         $callbackObserver = new CallbackObserver(
                             [$observer, 'onNext'],
                             [$observer, 'onError'],

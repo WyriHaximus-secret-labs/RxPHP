@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace Rx\Scheduler;
 
+use Rx\Disposable\EmptyDisposable;
+use Rx\SchedulerInterface;
 use Rx\TestCase;
 
 class PriorityQueueTest extends TestCase
@@ -11,7 +13,7 @@ class PriorityQueueTest extends TestCase
     /**
      * @test
      */
-    public function it_should_remove_a_scheduled_item(): void
+    public function it_should_remove_a_scheduled_item()
     {
         $queue          = new PriorityQueue();
         $scheduledItem  = $this->createScheduledItem(1);
@@ -32,13 +34,15 @@ class PriorityQueueTest extends TestCase
 
     private function createScheduledItem($dueTime)
     {
-        return new ScheduledItem(null, null, null, $dueTime, null);
+        return new ScheduledItem(new ImmediateScheduler(), null, function (SchedulerInterface $scheduler, $data) {
+            return new EmptyDisposable();
+        }, $dueTime, null);
     }
 
     /**
      * @test
      */
-    public function it_orders_the_items(): void
+    public function it_orders_the_items()
     {
         $queue          = new PriorityQueue();
         $scheduledItem  = $this->createScheduledItem(3);
@@ -57,7 +61,7 @@ class PriorityQueueTest extends TestCase
     /**
      * @test
      */
-    public function peek_returns_the_top_item(): void
+    public function peek_returns_the_top_item()
     {
         $queue          = new PriorityQueue();
         $scheduledItem  = $this->createScheduledItem(3);
@@ -74,7 +78,7 @@ class PriorityQueueTest extends TestCase
     /**
      * @test
      */
-    public function dequeue_removes_the_top_item_from_the_queue(): void
+    public function dequeue_removes_the_top_item_from_the_queue()
     {
         $queue          = new PriorityQueue();
         $scheduledItem  = $this->createScheduledItem(1);
@@ -96,7 +100,7 @@ class PriorityQueueTest extends TestCase
     /**
      * @test
      */
-    public function first_scheduled_item_with_same_priority_comes_first(): void
+    public function first_scheduled_item_with_same_priority_comes_first()
     {
         $queue          = new PriorityQueue();
         $scheduledItem  = $this->createScheduledItem(1);
@@ -115,7 +119,7 @@ class PriorityQueueTest extends TestCase
     /**
      * @test
      */
-    public function can_remove_scheduled_items_out_of_order(): void
+    public function can_remove_scheduled_items_out_of_order()
     {
         $queue          = new PriorityQueue();
         $scheduledItem  = $this->createScheduledItem(1);
@@ -135,14 +139,15 @@ class PriorityQueueTest extends TestCase
      * @test
      * @doesNotPerformAssertions
      */
-    public function should_not_remove_nonexistent_item(): void
+    public function should_not_remove_nonexistent_item()
     {
         $queue = new PriorityQueue();
         $queue->remove(
             new ScheduledItem(
-                $this->createMock(ScheduledItem::class),
+                new ImmediateScheduler(),
                 null,
-                function (): void {
+                function (SchedulerInterface $scheduler, $data) {
+                    return new EmptyDisposable();
                 },
                 0
             )

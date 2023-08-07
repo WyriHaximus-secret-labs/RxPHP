@@ -48,6 +48,11 @@ final class ScheduledObserver extends AbstractObserver
         };
     }
 
+    /**
+     * @template T
+     * @param T $value
+     * @return void
+     */
     protected function next($value)
     {
         $this->queue[] = function () use ($value): void {
@@ -62,6 +67,9 @@ final class ScheduledObserver extends AbstractObserver
         };
     }
 
+    /**
+     * @return void
+     */
     public function ensureActive()
     {
         $isOwner = false;
@@ -93,12 +101,15 @@ final class ScheduledObserver extends AbstractObserver
 
                         throw $e;
                     }
-                    $recurse($parent);
+                    $recurse();
                 }
             )
         );
     }
 
+    /**
+     * @return void
+     */
     public function dispose()
     {
         $this->disposable->dispose();

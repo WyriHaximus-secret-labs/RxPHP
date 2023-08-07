@@ -9,17 +9,41 @@ use Rx\Disposable\CompositeDisposable;
 use Rx\Disposable\RefCountDisposable;
 use Rx\Disposable\SingleAssignmentDisposable;
 use Rx\DisposableInterface;
+use Rx\Observable;
 use Rx\Observable\GroupedObservable;
 use Rx\ObservableInterface;
 use Rx\ObserverInterface;
 use Rx\Subject\Subject;
 
+/**
+ * @template T
+ * @template-implements OperatorInterface<T>
+ */
 final class GroupByUntilOperator implements OperatorInterface
 {
+    /**
+     * @var callable(mixed): mixed
+     */
     private $keySelector;
+
+    /**
+     * @var callable(mixed): mixed
+     */
     private $elementSelector;
+
+    /**
+     * @var callable
+     */
     private $durationSelector;
+
+    /**
+     * @var callable
+     */
     private $keySerializer;
+
+    /**
+     * @var array<array-key, Subject<T>>
+     */
     private $map = [];
 
     public function __construct(callable $keySelector, ?callable $elementSelector = null, ?callable $durationSelector = null, ?callable $keySerializer = null)
@@ -58,6 +82,7 @@ final class GroupByUntilOperator implements OperatorInterface
             foreach ($this->map as $w) {
                 $w->onError($e);
             }
+            /** @phpstan-ignore-next-line */
             if ($sourceEmits) {
                 $observer->onError($e);
             }
@@ -66,13 +91,15 @@ final class GroupByUntilOperator implements OperatorInterface
         $subscription = $observable->subscribe(
             function ($element) use ($observer, $handleError, $refCountDisposable, $groupDisposable, &$sourceEmits): void {
                 try {
-                    $key           = call_user_func($this->keySelector, $element);
+                    $key = call_user_func($this->keySelector, $element);
+                    /** @var array-key $serializedKey */
                     $serializedKey = call_user_func($this->keySerializer, $key);
                 } catch (\Throwable $e) {
                     $handleError($e);
                     return;
                 }
 
+                /** @phpstan-ignore-next-line */
                 if (!$sourceEmits && !isset($this->map[$serializedKey])) {
                     return;
                 }
@@ -84,6 +111,7 @@ final class GroupByUntilOperator implements OperatorInterface
                     $durationGroup             = new GroupedObservable($key, $writer);
 
                     try {
+                        /** @var Observable<mixed> $duration */
                         $duration = call_user_func($this->durationSelector, $durationGroup);
                     } catch (\Throwable $e) {
                         $handleError($e);
@@ -108,7 +136,7 @@ final class GroupByUntilOperator implements OperatorInterface
                     $md->setDisposable($durationSubscription);
                 }
 
-                if (is_callable($this->elementSelector)) {
+                if (is_callable($this->elementSelector)) { /** @phpstan-ignore function.alreadyNarrowedType */
                     try {
                         $element = call_user_func($this->elementSelector, $element);
                     } catch (\Throwable $e) {
@@ -124,6 +152,7 @@ final class GroupByUntilOperator implements OperatorInterface
                 foreach ($this->map as $w) {
                     $w->onCompleted();
                 }
+                /** @phpstan-ignore-next-line */
                 if ($sourceEmits) {
                     $observer->onCompleted();
                 }

@@ -9,12 +9,15 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class BufferWithCountOperator implements OperatorInterface
 {
     /** @var int */
     private $count;
 
-    /** @var */
+    /** @var ?int */
     private $skip;
 
     /** @var int */
@@ -67,6 +70,7 @@ final class BufferWithCountOperator implements OperatorInterface
                 $observer->onError($err);
             },
             function () use (&$currentGroups, $observer): void {
+                /** @phpstan-ignore-next-line */
                 foreach ($currentGroups as &$group) {
                     $observer->onNext($group);
                 }

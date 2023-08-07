@@ -9,10 +9,19 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class DistinctUntilChangedOperator implements OperatorInterface
 {
+    /**
+     * @var callable|null
+     */
     protected $keySelector;
 
+    /**
+     * @var callable
+     */
     protected $comparer;
 
     public function __construct(?callable $keySelector = null, ?callable $comparer = null)
@@ -29,13 +38,14 @@ final class DistinctUntilChangedOperator implements OperatorInterface
         $hasCurrentKey = false;
         $currentKey    = null;
         $cbObserver    = new CallbackObserver(
-            function ($value) use ($observer, &$hasCurrentKey, &$currentKey) {
+            function ($value) use ($observer, &$hasCurrentKey, &$currentKey): void {
                 $key = $value;
                 if ($this->keySelector) {
                     try {
                         $key = ($this->keySelector)($value);
                     } catch (\Throwable $e) {
-                        return $observer->onError($e);
+                        $observer->onError($e);
+                        return;
                     }
                 }
 
@@ -44,7 +54,8 @@ final class DistinctUntilChangedOperator implements OperatorInterface
                     try {
                         $comparerEquals = ($this->comparer)($currentKey, $key);
                     } catch (\Throwable $e) {
-                        return $observer->onError($e);
+                        $observer->onError($e);
+                        return;
                     }
                 }
 

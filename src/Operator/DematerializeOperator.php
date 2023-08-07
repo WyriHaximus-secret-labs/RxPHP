@@ -10,6 +10,9 @@ use Rx\ObservableInterface;
 use Rx\Observer\CallbackObserver;
 use Rx\ObserverInterface;
 
+/**
+ * @template-implements OperatorInterface<mixed>
+ */
 final class DematerializeOperator implements OperatorInterface
 {
     public function __invoke(ObservableInterface $observable, ObserverInterface $observer): DisposableInterface
